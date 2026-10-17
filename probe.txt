@@ -1,0 +1,28 @@
+=== follow redirects ===
+HTTP/2 302 
+location: http://n10.radiojar.com/8s5u5tpdtwzuv?rj-ttl=5&rj-tok=AAABoUvk2-EARfcMCvg0agdK8g
+content-length: 0
+
+HTTP/1.1 200 OK
+content-type: audio/mpeg
+icy-name: Mini2's Broadcast
+
+curl: (28) Operation timed out after 19607 milliseconds with 246112 bytes received
+
+FINAL http://n10.radiojar.com/8s5u5tpdtwzuv?rj-ttl=5&rj-tok=AAABoUvk2-EARfcMCvg0agdK8g code=200 type=audio/mpeg bytes=246112
+00000000: fffb 6064 ef80 f317 4052 6b0c 2ae2 0000  ..`d....@Rk.*...
+00000010: 0d20 0000 010c 9505 45ac 3ccb a800 0034  . ......E.<....4
+00000020: 8000 0004 4736 0914 7b2f 5d1f bb08 8403  ....G6..{/].....
+=== no follow ===
+HTTP/2 302 
+location: http://n03.radiojar.com/8s5u5tpdtwzuv?rj-ttl=5&rj-tok=AAABoUvlKecAiimoAfNwT2ekoA
+content-length: 0
+
+=== radio-browser ===
+OmniRadio - Holy Quran Radio Cairo (إذاعة القرآن الكريم (القاهرة))	https://radio.xecod.com/station/quran-cairo	https://radio.xecod.com/station/quran-cairo	MP3	64	1
+OmniRadio - Quran & Islamic Radio (إذاعة القرآن الكريم)	https://radio.xecod.com/station/quran-cairo	https://radio.xecod.com/station/quran-cairo	MP3	64	1
+Radio Quran	https://stream.radiojar.com/8s5u5tpdtwzuv	https://stream.radiojar.com/8s5u5tpdtwzuv	MP3	0	1
+إذاعة القرآن الكريم 	https://n0a.radiojar.com/0tpy1h0kxtzuv?rj-ttl=5&rj-tok=AAABhdgGORQA-2acfyF3_4WY2g	https://n0a.radiojar.com/0tpy1h0kxtzuv?rj-ttl=5&rj-tok=AAABhdgGORQA-2acfyF3_4WY2g	MP3	0	1
+إذاعة القرآن الكريم (القاهرة)	https://stream.radiojar.com/8s5u5tpdtwzuv	https://stream.radiojar.com/8s5u5tpdtwzuv	MP3	0	1
+إذاعة القرآن الكريم من القاهرة	http://n12.radiojar.com/8s5u5tpdtwzuv?listening-from-radio-garden=1620219571863&rj-tok=AAABeTyl2zYARSWbLVnrEOlqGw&rj-ttl=5	http://n12.radiojar.com/8s5u5tpdtwzuv?listening-from-radio-garden=1620219571863&rj-tok=AAABeTyl2zYARSWbLVnrEOlqGw&rj-ttl=5	MP3	0	1
+اذاعة القرآن الكريم	http://stream.radiojar.com/0tpy1h0kxtzuv	http://stream.radiojar.com/0tpy1h0kxtzuv	MP3	0	1
