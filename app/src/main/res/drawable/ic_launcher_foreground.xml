@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A radio with a record dot. Drawn inside the 66dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M42,45 L66,32"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeColor="#FBF8F1" />
+    <path
+        android:fillType="evenOdd"
+        android:fillColor="#FBF8F1"
+        android:pathData="M34,44 h40 a4,4 0 0 1 4,4 v24 a4,4 0 0 1 -4,4 h-40 a4,4 0 0 1 -4,-4 v-24 a4,4 0 0 1 4,-4 z
+            M35,60 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0 z
+            M59,51 h13 v3 h-13 z
+            M59,58.5 h13 v3 h-13 z
+            M59,66 h13 v3 h-13 z" />
+    <path
+        android:fillColor="#E05A47"
+        android:pathData="M40,60 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 z" />
+</vector>
