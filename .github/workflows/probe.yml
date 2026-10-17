@@ -2,19 +2,27 @@ name: Probe stream
 on:
   push:
     branches: [probe]
+    paths: [.github/workflows/probe.yml]
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Follow redirects, show headers
+      - uses: actions/checkout@v4
+      - name: Probe
         run: |
-          curl -sS -m 20 -D - -o /tmp/a.bin -L --max-filesize 100000 -r 0-60000 "https://stream.radiojar.com/8s5u5tpdtwzuv" -w '\nFINAL %{url_effective} code=%{http_code} type=%{content_type} bytes=%{size_download}\n' || true
-          head -c 64 /tmp/a.bin | xxd | head -4 || true
-      - name: Redirect chain without following
-        run: curl -sS -m 15 -o /dev/null -D - "https://stream.radiojar.com/8s5u5tpdtwzuv" || true
-      - name: Radio-browser candidates
-        run: |
+          {
+          echo "=== follow redirects ==="
+          curl -sS -m 20 -D - -o /tmp/a.bin -L -r 0-60000 "https://stream.radiojar.com/8s5u5tpdtwzuv" -w '\nFINAL %{url_effective} code=%{http_code} type=%{content_type} bytes=%{size_download}\n' 2>&1 || true
+          head -c 48 /tmp/a.bin | xxd 2>&1 | head -3 || true
+          echo "=== no follow ==="
+          curl -sS -m 15 -o /dev/null -D - "https://stream.radiojar.com/8s5u5tpdtwzuv" 2>&1 || true
+          echo "=== radio-browser ==="
           for q in "%D8%A7%D9%84%D9%82%D8%B1%D8%A2%D9%86" "quran" "Holy%20Quran"; do
             curl -sS -m 20 "https://de1.api.radio-browser.info/json/stations/search?countrycode=EG&name=$q&limit=40&hidebroken=true" \
-             | jq -r '.[] | [.name, .url_resolved, .codec, (.bitrate|tostring), .lastcheckok|tostring] | @tsv' || true
+             | jq -r '.[] | [.name, .url, .url_resolved, .codec, (.bitrate|tostring), (.lastcheckok|tostring)] | @tsv' 2>&1 || true
           done | sort -u
+          } > probe.txt 2>&1
+          git config user.name probe-bot; git config user.email probe@localhost
+          git add probe.txt && git commit -m "probe results" && git push
