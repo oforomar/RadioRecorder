@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Radio streams are commonly served over plain HTTP. Radiojar (the station's host)
+  redirects its https:// link to an http:// stream server, which Android blocks by default.
+  The app only ever connects to radio streams, so plain HTTP is allowed.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

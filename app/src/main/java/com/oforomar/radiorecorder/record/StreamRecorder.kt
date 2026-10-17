@@ -14,6 +14,8 @@ import java.io.BufferedOutputStream
 import java.io.IOException
 import java.net.UnknownHostException
 import java.net.SocketTimeoutException
+import java.net.UnknownServiceException
+import javax.net.ssl.SSLException
 
 /** One recording in progress. Fields touched from several threads are volatile. */
 class Session(val req: RecordRequest) {
@@ -83,6 +85,7 @@ class StreamRecorder(private val ctx: Context, private val client: OkHttpClient)
         var gapMs = 0L
         var disconnectedAt: Long? = null
         var lastError = "تعذّر الاتصال بالإذاعة."
+        var lastDetail = ""
         var attempt = 0
         val url = Repo.streamUrl
 
@@ -130,6 +133,7 @@ class StreamRecorder(private val ctx: Context, private val client: OkHttpClient)
                         }
                     } catch (e: IOException) {
                         lastError = describe(e)
+                        lastDetail = "${e.javaClass.simpleName}: ${e.message}"
                     } finally {
                         s.call = null
                         s.connected = false
@@ -147,7 +151,8 @@ class StreamRecorder(private val ctx: Context, private val client: OkHttpClient)
                 out.flush()
             }
         } catch (e: Exception) {
-            lastError = if (e is IOException) describe(e) else "خطأ أثناء الكتابة: ${e.message}"
+            lastError = if (e is IOException) describe(e) else "خطأ أثناء الكتابة."
+            lastDetail = "${e.javaClass.simpleName}: ${e.message}"
         } finally {
             runCatching { wifi?.release() }
             runCatching { wake.release() }
@@ -159,7 +164,11 @@ class StreamRecorder(private val ctx: Context, private val client: OkHttpClient)
         if (s.bytes < MIN_BYTES) {
             MediaFiles.delete(ctx, created.uri)
             Repo.clearInProgress(uriString)
-            val reason = if (s.stopped) "أُوقف قبل أن يُسجَّل شيء." else lastError
+            val reason = when {
+                s.stopped -> "أُوقف قبل أن يُسجَّل شيء."
+                lastDetail.isNotEmpty() -> "$lastError\n\n($lastDetail)"
+                else -> lastError
+            }
             val failed = failure(reason).recording.copy(id = recId)
             return Outcome(failed, reason)
         }
@@ -196,6 +205,8 @@ class StreamRecorder(private val ctx: Context, private val client: OkHttpClient)
     private fun describe(e: IOException): String = when {
         e is UnknownHostException -> "لا يوجد اتصال بالإنترنت."
         e is SocketTimeoutException -> "الاتصال بالإذاعة بطيء أو منقطع."
+        e is UnknownServiceException -> "الهاتف منع الاتصال برابط البث (رابط غير آمن)."
+        e is SSLException -> "تعذّر الاتصال الآمن بخادم الإذاعة."
         e.message?.startsWith("HTTP") == true -> "رفض خادم الإذاعة الطلب (${e.message})."
         e.message?.startsWith("unsupported") == true -> "رابط البث لا يعيد صوتاً. راجع الرابط في الإعدادات."
         else -> "انقطع الاتصال بالإذاعة."
