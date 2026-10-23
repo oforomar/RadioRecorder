@@ -37,6 +37,24 @@ val PauseIcon: ImageVector by lazy {
     }
 }
 
+val FolderIcon: ImageVector by lazy {
+    materialIcon(name = "Filled.Folder") {
+        materialPath {
+            moveTo(10f, 4f); horizontalLineTo(4f)
+            curveToRelative(-1.1f, 0f, -1.99f, 0.9f, -1.99f, 2f)
+            lineTo(2f, 18f)
+            curveToRelative(0f, 1.1f, 0.9f, 2f, 2f, 2f)
+            horizontalLineToRelative(16f)
+            curveToRelative(1.1f, 0f, 2f, -0.9f, 2f, -2f)
+            verticalLineTo(8f)
+            curveToRelative(0f, -1.1f, -0.9f, -2f, -2f, -2f)
+            horizontalLineToRelative(-8f)
+            lineToRelative(-2f, -2f)
+            close()
+        }
+    }
+}
+
 val StopIcon: ImageVector by lazy {
     materialIcon(name = "Filled.Stop") {
         materialPath {

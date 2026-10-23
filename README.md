@@ -4,8 +4,8 @@ An Android app that records programs from **إذاعة القرآن الكريم
 
 The one thing it does:
 
-1. Add a program — name, time, duration.
-2. It records every day at that time and saves to `Music/إذاعة القرآن/<name>/<name> 2026-10-18.mp3`.
+1. Add a program — name, time, duration, and (optionally) the folder to save it in.
+2. It records every day at that time and saves `<name> 2026-10-18.mp3` in that program's folder — by default `Music/إذاعة القرآن/<name>/`.
 3. When the station moves the program (Ramadan, summer, winter), tap the time on the program's card and pick the new one.
 
 ## How it works
@@ -14,6 +14,7 @@ The one thing it does:
 - **Timing:** one `AlarmManager.setAlarmClock` alarm per program, always aimed at its next airing. Times are stored as wall-clock times and converted with the phone's time zone at scheduling time, so Egypt's summer-time switch is handled automatically.
 - **Recording:** a foreground service (`specialUse`) with a wake lock. On a dropped connection it reconnects with backoff and keeps appending to the same file; gaps are reported as "partial".
 - **Resilience:** alarms are re-armed on reboot, app update, clock/time-zone change and every app launch. If the phone restarts mid-program, the rest of the program is still recorded. If the process is killed, what was recorded so far is still saved.
+- **Save location per program:** chosen with Android's folder picker (phone storage or SD card); the app keeps a persistent write permission for it. If that folder is later deleted or the permission is lost, recordings fall back to the default Music folder, and the home screen and the recording itself say so. Permissions no program or recording uses any more are released.
 - **Padding:** starts 1 minute early and runs 2 minutes late by default (Settings).
 - **Setup checks:** the home screen shows what still needs allowing (notifications, battery optimisation, autostart on Xiaomi/Oppo/Realme/Infinix/Tecno/Huawei phones) with a button for each.
 
@@ -38,7 +39,7 @@ Android Studio (current stable), open the project, run. Or `./gradlew assembleDe
 | `schedule/Receivers.kt` | Alarm firing; reboot / time change re-arming |
 | `record/RecorderService.kt` | Foreground service running all active recordings |
 | `record/StreamRecorder.kt` | Stream → file copy, reconnects, gap accounting |
-| `record/MediaFiles.kt` | MediaStore file creation, ID3 tag |
+| `record/MediaFiles.kt` | File creation (chosen folder via SAF, or MediaStore Music), folder permissions, ID3 tag |
 | `data/Repo.kt` | Programs, recordings, settings (JSON + SharedPreferences) |
 | `ui/` | Jetpack Compose screens (Arabic, right-to-left) |
 

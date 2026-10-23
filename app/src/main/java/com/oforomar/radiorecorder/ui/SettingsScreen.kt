@@ -127,7 +127,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
 
             Text(
-                "التسجيلات تُحفظ في: الموسيقى ← إذاعة القرآن ← اسم البرنامج",
+                "التسجيلات تُحفظ افتراضياً في: الموسيقى › إذاعة القرآن › اسم البرنامج.\nلاختيار مجلد آخر لبرنامج، افتح «تعديل» البرنامج ثم «مكان الحفظ».",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

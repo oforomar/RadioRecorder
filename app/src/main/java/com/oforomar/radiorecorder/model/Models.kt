@@ -16,6 +16,8 @@ data class Program(
     val durationMin: Int,
     val days: Int = ALL_DAYS,
     val enabled: Boolean = true,
+    /** Storage-Access-Framework tree uri of the folder chosen for this program; empty = default Music folder. */
+    val folderUri: String = "",
 ) {
     fun runsOn(day: DayOfWeek): Boolean = (days and day.bit()) != 0
 
@@ -27,6 +29,7 @@ data class Program(
         .put("durationMin", durationMin)
         .put("days", days)
         .put("enabled", enabled)
+        .put("folderUri", folderUri)
 
     companion object {
         fun fromJson(o: JSONObject) = Program(
@@ -37,6 +40,7 @@ data class Program(
             durationMin = o.getInt("durationMin"),
             days = o.optInt("days", ALL_DAYS),
             enabled = o.optBoolean("enabled", true),
+            folderUri = o.optString("folderUri", ""),
         )
     }
 }
@@ -56,6 +60,8 @@ data class Recording(
     val gapSec: Int,
     val status: RecStatus,
     val error: String = "",
+    /** Shown under the recording, e.g. when the chosen folder was unavailable and the default was used. */
+    val note: String = "",
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("id", id)
@@ -69,6 +75,7 @@ data class Recording(
         .put("gapSec", gapSec)
         .put("status", status.name)
         .put("error", error)
+        .put("note", note)
 
     companion object {
         fun fromJson(o: JSONObject) = Recording(
@@ -83,6 +90,7 @@ data class Recording(
             gapSec = o.optInt("gapSec"),
             status = runCatching { RecStatus.valueOf(o.getString("status")) }.getOrDefault(RecStatus.OK),
             error = o.optString("error"),
+            note = o.optString("note"),
         )
     }
 }

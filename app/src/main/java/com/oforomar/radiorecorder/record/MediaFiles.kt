@@ -2,32 +2,62 @@ package com.oforomar.radiorecorder.record
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.os.StatFs
+import android.provider.DocumentsContract
 import android.provider.MediaStore
+import com.oforomar.radiorecorder.data.Repo
 import com.oforomar.radiorecorder.util.Ar
 import java.io.ByteArrayOutputStream
 import java.time.LocalDate
 
 /**
- * Recordings go to the shared Music folder through MediaStore:
+ * Where recordings are written.
+ *
+ * Each program may have its own folder, chosen with Android's folder picker (Storage Access
+ * Framework); the app keeps a persistent permission for it. Without one — or if the chosen folder
+ * was deleted or its permission revoked — recordings go to the shared Music folder:
  *   Music/إذاعة القرآن/<program name>/<program name> 2026-10-18.mp3
- * so they show up in any file manager or music player, can be shared on WhatsApp,
- * and survive uninstalling the app.
+ * Either way the files are ordinary MP3s visible to any file manager or player.
  */
 object MediaFiles {
     const val ROOT = "إذاعة القرآن"
     const val ARTIST = "إذاعة القرآن الكريم"
 
-    data class Created(val uri: Uri, val fileName: String)
+    /** [fellBack] is true when a chosen folder was unavailable and the default was used instead. */
+    data class Created(val uri: Uri, val fileName: String, val fellBack: Boolean = false)
 
     fun safeName(name: String): String =
         name.replace(Regex("[\\\\/:*?\"<>|\\n\\r\\t]"), " ").trim().ifEmpty { "برنامج" }.take(80)
 
-    fun create(ctx: Context, programName: String, airDate: LocalDate): Created {
+    fun fileName(programName: String, airDate: LocalDate): String =
+        "${safeName(programName)} ${airDate.format(Ar.fileDate)}.mp3"
+
+    fun create(ctx: Context, programName: String, airDate: LocalDate, folderUri: String = ""): Created {
+        val name = fileName(programName, airDate)
+        if (folderUri.isNotEmpty()) {
+            runCatching { return createInFolder(ctx, Uri.parse(folderUri), name) }
+            return createInMusic(ctx, programName, name).copy(fellBack = true)
+        }
+        return createInMusic(ctx, programName, name)
+    }
+
+    private fun createInFolder(ctx: Context, tree: Uri, fileName: String): Created {
+        val dir = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+        val uri = DocumentsContract.createDocument(ctx.contentResolver, dir, "audio/mpeg", fileName)
+            ?: throw IllegalStateException("createDocument returned null")
+        // The provider renames on a clash ("… (1).mp3"); keep the real name.
+        val actual = runCatching {
+            ctx.contentResolver.query(uri, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)
+                ?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        }.getOrNull()
+        return Created(uri, actual ?: fileName)
+    }
+
+    private fun createInMusic(ctx: Context, programName: String, fileName: String): Created {
         val folder = safeName(programName)
-        val fileName = "$folder ${airDate.format(Ar.fileDate)}.mp3"
         val values = ContentValues().apply {
             put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
             put(MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg")
@@ -44,18 +74,91 @@ object MediaFiles {
         return Created(uri, fileName)
     }
 
-    /** Makes the file visible to other apps (it is hidden while being written). */
+    private fun isMediaStore(uri: Uri) = uri.authority == MediaStore.AUTHORITY
+
+    /** Makes a Music-folder file visible to other apps (it is hidden while being written). */
     fun publish(ctx: Context, uri: Uri) {
+        if (!isMediaStore(uri)) return
         val values = ContentValues().apply { put(MediaStore.Audio.Media.IS_PENDING, 0) }
         runCatching { ctx.contentResolver.update(uri, values, null, null) }
     }
 
-    fun delete(ctx: Context, uri: Uri): Boolean =
-        runCatching { ctx.contentResolver.delete(uri, null, null) > 0 }.getOrDefault(false)
+    fun delete(ctx: Context, uri: Uri): Boolean = runCatching {
+        if (DocumentsContract.isDocumentUri(ctx, uri)) DocumentsContract.deleteDocument(ctx.contentResolver, uri)
+        else ctx.contentResolver.delete(uri, null, null) > 0
+    }.getOrDefault(false)
 
     fun freeBytes(): Long =
         runCatching { StatFs(Environment.getExternalStorageDirectory().path).availableBytes }
             .getOrDefault(Long.MAX_VALUE)
+}
+
+/** Folders picked by the user for programs: permissions, availability and readable names. */
+object Folders {
+    const val PROVIDER = "com.android.externalstorage.documents"
+
+    /** Folder picker starts in Music when nothing is chosen yet. */
+    val musicInitialUri: Uri = DocumentsContract.buildDocumentUri(PROVIDER, "primary:${Environment.DIRECTORY_MUSIC}")
+
+    /** Only real folders on the phone or SD card — not cloud providers, which can't take a live recording. */
+    fun isSupported(tree: Uri) = tree.authority == PROVIDER
+
+    fun takePermission(ctx: Context, tree: Uri): Boolean = runCatching {
+        ctx.contentResolver.takePersistableUriPermission(
+            tree,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+        )
+        true
+    }.getOrDefault(false)
+
+    /** Still have write access, and the folder still exists. */
+    fun isAvailable(ctx: Context, folderUri: String): Boolean {
+        if (folderUri.isEmpty()) return true
+        val tree = Uri.parse(folderUri)
+        val granted = ctx.contentResolver.persistedUriPermissions.any { it.uri == tree && it.isWritePermission }
+        if (!granted) return false
+        return runCatching {
+            val dir = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+            ctx.contentResolver.query(dir, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID), null, null, null)
+                ?.use { it.moveToFirst() } ?: false
+        }.getOrDefault(false)
+    }
+
+    /** "ذاكرة الهاتف › Music › قرآن" */
+    fun label(folderUri: String): String = runCatching {
+        val docId = DocumentsContract.getTreeDocumentId(Uri.parse(folderUri))
+        val volume = docId.substringBefore(':')
+        val path = docId.substringAfter(':', "")
+        val root = if (volume.equals("primary", ignoreCase = true)) "ذاكرة الهاتف" else "بطاقة الذاكرة"
+        (listOf(root) + path.split('/').filter { it.isNotBlank() }).joinToString(" › ")
+    }.getOrDefault("مجلد مختار")
+
+    fun defaultLabel(programName: String) =
+        "الموسيقى › ${MediaFiles.ROOT} › ${MediaFiles.safeName(programName)}"
+
+    fun labelFor(programName: String, folderUri: String) =
+        if (folderUri.isEmpty()) defaultLabel(programName) else label(folderUri)
+
+    /**
+     * Gives back folder permissions nothing uses any more — no program saves there and no listed
+     * recording lives there (playing or deleting a recording needs its folder's permission).
+     */
+    fun releaseUnused(ctx: Context) {
+        val programs = Repo.programs.value.map { it.folderUri }.filter { it.isNotEmpty() }.toSet()
+        val recordingUris = Repo.recordings.value.map { it.uri }
+        ctx.contentResolver.persistedUriPermissions.forEach { perm ->
+            val tree = perm.uri.toString()
+            val used = tree in programs || recordingUris.any { it.startsWith("$tree/document/") }
+            if (!used) {
+                runCatching {
+                    ctx.contentResolver.releasePersistableUriPermission(
+                        perm.uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                    )
+                }
+            }
+        }
+    }
 }
 
 /** A minimal ID3v2.3 tag so players show the program name instead of a file name. */

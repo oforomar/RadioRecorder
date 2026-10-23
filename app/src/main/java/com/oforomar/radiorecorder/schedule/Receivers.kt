@@ -30,7 +30,10 @@ class AlarmReceiver : BroadcastReceiver() {
         }
         RecorderService.start(
             ctx,
-            RecordRequest(programId = program.id, name = program.name, endAt = end, airDate = airDate, test = false),
+            RecordRequest(
+                programId = program.id, name = program.name, endAt = end, airDate = airDate,
+                test = false, folderUri = program.folderUri,
+            ),
         )
     }
 }

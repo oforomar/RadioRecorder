@@ -71,6 +71,7 @@ class RecorderService : Service() {
             endAt = intent.getLongExtra(EXTRA_END, System.currentTimeMillis() + 15_000),
             airDate = LocalDate.ofEpochDay(intent.getLongExtra(EXTRA_AIR_DATE, LocalDate.now().toEpochDay())),
             test = intent.getBooleanExtra(EXTRA_TEST, false),
+            folderUri = intent.getStringExtra(EXTRA_FOLDER).orEmpty(),
         )
         // Same program already recording (e.g. its time was moved later): just extend it.
         sessions[req.programId]?.let { existing ->
@@ -197,6 +198,7 @@ class RecorderService : Service() {
         const val EXTRA_END = "end"
         const val EXTRA_AIR_DATE = "air_date"
         const val EXTRA_TEST = "test"
+        const val EXTRA_FOLDER = "folder"
         const val STOP_ALL = Long.MIN_VALUE
 
         fun start(ctx: Context, req: RecordRequest) {
@@ -207,6 +209,7 @@ class RecorderService : Service() {
                 .putExtra(EXTRA_END, req.endAt)
                 .putExtra(EXTRA_AIR_DATE, req.airDate.toEpochDay())
                 .putExtra(EXTRA_TEST, req.test)
+                .putExtra(EXTRA_FOLDER, req.folderUri)
             try {
                 ContextCompat.startForegroundService(ctx, intent)
             } catch (e: Exception) {

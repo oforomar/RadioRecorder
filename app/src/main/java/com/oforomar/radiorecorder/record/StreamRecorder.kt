@@ -58,17 +58,20 @@ class StreamRecorder(private val ctx: Context, private val client: OkHttpClient)
         if (MediaFiles.freeBytes() < 50L * 1024 * 1024) return failure("لا توجد مساحة كافية على الهاتف.")
 
         val created = try {
-            MediaFiles.create(ctx, if (req.test) TEST_NAME else req.name, req.airDate)
+            MediaFiles.create(ctx, if (req.test) TEST_NAME else req.name, req.airDate, req.folderUri)
         } catch (e: Exception) {
             return failure("تعذّر إنشاء ملف التسجيل.")
         }
         val uriString = created.uri.toString()
+        val note = if (created.fellBack) {
+            "المجلد المختار غير متاح، فحُفظ في: ${Folders.defaultLabel(req.name)}"
+        } else ""
         val recId = Repo.newId()
         Repo.markInProgress(
             Recording(
                 id = recId, programId = req.programId, programName = req.name, uri = uriString,
                 fileName = created.fileName, startedAt = startedAt, endedAt = startedAt,
-                bytes = 0, gapSec = 0, status = RecStatus.PARTIAL,
+                bytes = 0, gapSec = 0, status = RecStatus.PARTIAL, note = note,
             ),
         )
 
@@ -184,6 +187,7 @@ class StreamRecorder(private val ctx: Context, private val client: OkHttpClient)
             fileName = created.fileName, startedAt = startedAt, endedAt = endedAt,
             bytes = s.bytes, gapSec = (gapMs / 1000).toInt(), status = status,
             error = if (status == RecStatus.PARTIAL) lastError else "",
+            note = note,
         )
         Repo.addRecording(rec)
         Repo.clearInProgress(uriString)

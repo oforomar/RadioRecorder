@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.oforomar.radiorecorder.data.Repo
 import com.oforomar.radiorecorder.model.RecStatus
 import com.oforomar.radiorecorder.model.Recording
+import com.oforomar.radiorecorder.record.Folders
 import com.oforomar.radiorecorder.record.MediaFiles
 import com.oforomar.radiorecorder.util.Ar
 import kotlinx.coroutines.delay
@@ -63,7 +64,13 @@ fun RecordingsScreen(programId: Long, onBack: () -> Unit) {
     val programs by Repo.programs.collectAsState()
     val all by Repo.recordings.collectAsState()
     val list = remember(all, programId) { all.filter { it.programId == programId } }
-    val title = programs.firstOrNull { it.id == programId }?.name ?: list.firstOrNull()?.programName ?: "التسجيلات"
+    val program = programs.firstOrNull { it.id == programId }
+    val title = program?.name ?: list.firstOrNull()?.programName ?: "التسجيلات"
+    val location = program?.let {
+        val ok = Folders.isAvailable(ctx, it.folderUri)
+        (if (ok) "تُحفظ في: " else "المجلد المختار غير متاح — تُحفظ مؤقتاً في: ") +
+            Folders.labelFor(it.name, if (ok) it.folderUri else "")
+    }
 
     val player = remember { Player(ctx) }
     DisposableEffect(Unit) { onDispose { player.release() } }
@@ -102,6 +109,10 @@ fun RecordingsScreen(programId: Long, onBack: () -> Unit) {
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                location?.let {
+                    Spacer(Modifier.height(16.dp))
+                    Text(it, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                }
             }
             return@Scaffold
         }
@@ -111,6 +122,15 @@ fun RecordingsScreen(programId: Long, onBack: () -> Unit) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            location?.let {
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(FolderIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.size(8.dp))
+                        Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
             items(list, key = { it.id }) { r ->
                 RecordingRow(
                     r = r,
@@ -139,6 +159,7 @@ fun RecordingsScreen(programId: Long, onBack: () -> Unit) {
                         Toast.makeText(ctx, "أُزيل من القائمة؛ احذف الملف من مدير الملفات إن بقي.", Toast.LENGTH_LONG).show()
                     }
                     Repo.deleteRecording(r.id)
+                    Folders.releaseUnused(ctx)
                     deleteFor = null
                 }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
             },
@@ -177,6 +198,9 @@ private fun RecordingRow(
                 Column(Modifier.weight(1f)) {
                     Text(Ar.date(r.startedAt), style = MaterialTheme.typography.titleMedium)
                     Text(subtitle(r), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (r.note.isNotEmpty()) {
+                        Text(r.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                    }
                     if (r.status == RecStatus.PARTIAL || failed) {
                         Text(
                             if (failed) r.error.ifEmpty { "فشل التسجيل" }

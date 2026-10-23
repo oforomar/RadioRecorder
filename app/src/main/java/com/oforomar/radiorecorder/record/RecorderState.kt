@@ -11,6 +11,8 @@ data class RecordRequest(
     val endAt: Long,
     val airDate: LocalDate,
     val test: Boolean,
+    /** Folder chosen for the program; empty = default Music folder. */
+    val folderUri: String = "",
 )
 
 const val TEST_ID = -1L

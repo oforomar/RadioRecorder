@@ -1,6 +1,9 @@
 package com.oforomar.radiorecorder.ui
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -32,6 +35,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,11 +49,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.oforomar.radiorecorder.data.Repo
 import com.oforomar.radiorecorder.model.ALL_DAYS
 import com.oforomar.radiorecorder.model.Program
 import com.oforomar.radiorecorder.model.bit
+import com.oforomar.radiorecorder.record.Folders
 import com.oforomar.radiorecorder.schedule.Scheduler
 import com.oforomar.radiorecorder.util.Ar
 
@@ -66,6 +73,21 @@ fun EditorScreen(programId: Long?, onDone: () -> Unit) {
     var duration by remember { mutableIntStateOf(existing?.durationMin ?: 60) }
     var days by remember { mutableIntStateOf(existing?.days ?: ALL_DAYS) }
     var specificDays by remember { mutableStateOf(existing != null && existing.days != ALL_DAYS) }
+    var folderUri by remember { mutableStateOf(existing?.folderUri ?: "") }
+    var folderOk by remember { mutableStateOf(Folders.isAvailable(ctx, folderUri)) }
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree: Uri? ->
+        if (tree == null) return@rememberLauncherForActivityResult
+        when {
+            !Folders.isSupported(tree) ->
+                Toast.makeText(ctx, "اختر مجلداً على الهاتف أو بطاقة الذاكرة", Toast.LENGTH_LONG).show()
+            !Folders.takePermission(ctx, tree) ->
+                Toast.makeText(ctx, "تعذّر الحصول على إذن الكتابة في هذا المجلد", Toast.LENGTH_LONG).show()
+            else -> {
+                folderUri = tree.toString()
+                folderOk = true
+            }
+        }
+    }
     var showTime by remember { mutableStateOf(false) }
     var nameError by remember { mutableStateOf(false) }
 
@@ -175,6 +197,41 @@ fun EditorScreen(programId: Long?, onDone: () -> Unit) {
                 }
             }
 
+            // 5. Save location
+            Column {
+                Label("مكان الحفظ")
+                OutlinedButton(
+                    onClick = {
+                        pickFolder.launch(if (folderUri.isEmpty()) Folders.musicInitialUri else Uri.parse(folderUri))
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
+                ) {
+                    Icon(FolderIcon, contentDescription = null)
+                    Spacer(Modifier.size(10.dp))
+                    Text(
+                        Folders.labelFor(name.ifBlank { "اسم البرنامج" }, folderUri),
+                        style = MaterialTheme.typography.bodyLarge.merge(TextStyle(textDirection = TextDirection.Content)),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Text(
+                    when {
+                        folderUri.isEmpty() -> "المجلد الافتراضي. اضغط لاختيار مجلد آخر لهذا البرنامج."
+                        !folderOk -> "هذا المجلد لم يعد متاحاً — اختر مجلداً آخر، وإلا ستُحفظ التسجيلات في المجلد الافتراضي."
+                        else -> "تُحفظ تسجيلات هذا البرنامج مباشرة في هذا المجلد."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (folderUri.isNotEmpty() && !folderOk) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                if (folderUri.isNotEmpty()) {
+                    TextButton(onClick = { folderUri = ""; folderOk = true }) {
+                        Text("الرجوع إلى المجلد الافتراضي")
+                    }
+                }
+            }
+
             Button(
                 onClick = {
                     if (name.isBlank()) {
@@ -193,8 +250,10 @@ fun EditorScreen(programId: Long?, onDone: () -> Unit) {
                             minute = minute,
                             durationMin = duration,
                             days = finalDays,
+                            folderUri = folderUri,
                         ),
                     )
+                    Folders.releaseUnused(ctx)
                     val occ = Scheduler.schedule(ctx, saved, catchUp = true)
                     val msg = when {
                         !saved.enabled -> "تم الحفظ"

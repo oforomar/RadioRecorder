@@ -85,6 +85,7 @@ object Notifier {
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle("تم حفظ «${r.programName}» ✓")
                 .setContentText(text)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(if (r.note.isEmpty()) text else "$text\n${r.note}"))
                 .setAutoCancel(true)
                 .setContentIntent(openApp(ctx, r.programId))
                 .build(),

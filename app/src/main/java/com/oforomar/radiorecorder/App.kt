@@ -4,6 +4,7 @@ import android.app.Application
 import android.net.Uri
 import com.oforomar.radiorecorder.data.Repo
 import com.oforomar.radiorecorder.model.RecStatus
+import com.oforomar.radiorecorder.record.Folders
 import com.oforomar.radiorecorder.record.MediaFiles
 import com.oforomar.radiorecorder.record.Notifier
 
@@ -13,6 +14,8 @@ class App : Application() {
         Repo.init(this)
         Notifier.createChannels(this)
         recoverInterruptedRecordings()
+        // Drop folder permissions left over from a folder picked but never saved.
+        Folders.releaseUnused(this)
     }
 
     /**

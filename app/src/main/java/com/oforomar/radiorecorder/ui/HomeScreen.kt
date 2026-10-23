@@ -68,6 +68,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.oforomar.radiorecorder.data.Repo
 import com.oforomar.radiorecorder.model.Program
+import com.oforomar.radiorecorder.record.Folders
 import com.oforomar.radiorecorder.record.RecorderService
 import com.oforomar.radiorecorder.record.RecorderState
 import com.oforomar.radiorecorder.record.TEST_ID
@@ -110,6 +111,11 @@ fun HomeScreen(
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) Health.fix(ctx, Health.Issue.NOTIFICATIONS)
         healthRefresh++
+    }
+
+    // Programs whose chosen folder was deleted or lost its permission.
+    val folderProblems = remember(programs, resumeTick) {
+        programs.filter { !Folders.isAvailable(ctx, it.folderUri) }.map { it.id }.toSet()
     }
 
     var timeEditFor by remember { mutableStateOf<Program?>(null) }
@@ -178,6 +184,7 @@ fun HomeScreen(
                     p = p,
                     now = now,
                     active = active[p.id],
+                    folderProblem = p.id in folderProblems,
                     recordingCount = recordings.count { it.programId == p.id && it.uri.isNotEmpty() },
                     onTimeClick = { timeEditFor = p },
                     onToggle = { enabled ->
@@ -224,6 +231,7 @@ fun HomeScreen(
                     RecorderService.stop(ctx, p.id)
                     Scheduler.cancel(ctx, p.id)
                     Repo.deleteProgram(p.id)
+                    Folders.releaseUnused(ctx)
                     deleteFor = null
                 }) { Text("حذف", color = MaterialTheme.colorScheme.error) }
             },
@@ -241,6 +249,7 @@ private fun ProgramCard(
     p: Program,
     now: Long,
     active: RecorderState.Active?,
+    folderProblem: Boolean,
     recordingCount: Int,
     onTimeClick: () -> Unit,
     onToggle: (Boolean) -> Unit,
@@ -294,6 +303,15 @@ private fun ProgramCard(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (folderProblem) {
+                Text(
+                    "مجلد الحفظ المختار لم يعد متاحاً — ستُحفظ في المجلد الافتراضي. اضغط ✎ لاختيار مجلد.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
 
             Spacer(Modifier.height(10.dp))
             if (active != null) {
